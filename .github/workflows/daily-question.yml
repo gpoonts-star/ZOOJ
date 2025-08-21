@@ -24,11 +24,10 @@ jobs:
           #!/usr/bin/env bash
           echo "Fetching all question IDs..."
           RESPONSE_JSON=$(curl -s \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             "$SUPABASE_URL/rest/v1/questions?select=id")
 
-          RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r '.[].id' | sort -R | head -n1)
+          RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r '.[].id' | shuf -n1)
 
           if [ -z "$RANDOM_QUESTION_ID" ] || [ "$RANDOM_QUESTION_ID" = "null" ]; then
             echo "No question found!"
@@ -38,11 +37,11 @@ jobs:
           echo "Random question selected: $RANDOM_QUESTION_ID"
 
           RESPONSE=$(curl -s -X POST \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
             -d "{ \"question_id\": \"$RANDOM_QUESTION_ID\", \"couple_id\": null, \"scheduled_for\": \"$(date +%Y-%m-%d)\" }" \
-            "$SUPABASE_URL/rest/v1/daily_questions?return=representation")
+            "$SUPABASE_URL/rest/v1/daily_questions")
 
           echo "Inserted daily question response:"
           echo "$RESPONSE"
