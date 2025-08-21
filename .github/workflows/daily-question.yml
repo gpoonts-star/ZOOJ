@@ -7,8 +7,8 @@ on:
 
 jobs:
   insert-question:
-    runs-on: ubuntu-latest 
- 
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -24,20 +24,23 @@ jobs:
           #!/usr/bin/env bash
           echo "Selecting a random question..."
 
-          RANDOM_QUESTION_ID=$(curl -s \
+          RESPONSE_JSON=$(curl -s \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            "$SUPABASE_URL/rest/v1/questions?select=id&order=random()&limit=1" \
-            | jq -r '.[0].id')
+            "$SUPABASE_URL/rest/v1/questions?select=id&order=random()&limit=1")
 
-          if [ -z "$RANDOM_QUESTION_ID" ] || [ "$RANDOM_QUESTION_ID" = "null" ]; then
+          echo "Supabase response: $RESPONSE_JSON"
+
+          RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r '.[0]?.id // empty')
+
+          if [ -z "$RANDOM_QUESTION_ID" ]; then
             echo "No question found!"
             exit 1
           fi
 
           echo "Random question selected: $RANDOM_QUESTION_ID"
 
-          RESPONSE=$(curl -s -X POST \
+          INSERT_RESPONSE=$(curl -s -X POST \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
@@ -45,4 +48,4 @@ jobs:
             "$SUPABASE_URL/rest/v1/daily_questions?return=representation")
 
           echo "Inserted daily question response:"
-          echo "$RESPONSE"
+          echo "$INSERT_RESPONSE"
