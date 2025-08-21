@@ -1,9 +1,9 @@
 name: Daily Question
 
 on:
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *'  # Daily at 08:00 UTC
+    - cron: '0 8 * * *'
 
 jobs:
   insert-question:
@@ -24,19 +24,25 @@ jobs:
           #!/usr/bin/env bash
           echo "Fetching all question IDs..."
           RESPONSE_JSON=$(curl -s \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             "$SUPABASE_URL/rest/v1/questions?select=id")
 
-          RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r '.[].id' | shuf -n1)
+          echo "Supabase response:"
+          echo "$RESPONSE_JSON"
 
-          if [ -z "$RANDOM_QUESTION_ID" ] || [ "$RANDOM_QUESTION_ID" = "null" ]; then
-            echo "No question found!"
+          # Parse only if valid JSON array
+          RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r 'if type=="array" then .[].id else empty end' | shuf -n1)
+
+          if [ -z "$RANDOM_QUESTION_ID" ]; then
+            echo "No question found or Supabase returned error!"
             exit 1
           fi
 
           echo "Random question selected: $RANDOM_QUESTION_ID"
 
           RESPONSE=$(curl -s -X POST \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=representation" \
