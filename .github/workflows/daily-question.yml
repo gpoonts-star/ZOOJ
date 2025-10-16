@@ -31,7 +31,6 @@ jobs:
           echo "Supabase response:"
           echo "$RESPONSE_JSON"
 
-          # Parse only if valid JSON array
           RANDOM_QUESTION_ID=$(echo "$RESPONSE_JSON" | jq -r 'if type=="array" then .[].id else empty end' | shuf -n1)
 
           if [ -z "$RANDOM_QUESTION_ID" ]; then
@@ -41,7 +40,6 @@ jobs:
 
           echo "Random question selected: $RANDOM_QUESTION_ID"
 
-          # Get question content for the notification
           echo "Fetching question content..."
           QUESTION_RESPONSE=$(curl -s \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
@@ -51,7 +49,6 @@ jobs:
           echo "Question response:"
           echo "$QUESTION_RESPONSE"
 
-          # Extract question content
           QUESTION_CONTENT=$(echo "$QUESTION_RESPONSE" | jq -r 'if type=="array" and length>0 then .[0].content else empty end')
 
           if [ -z "$QUESTION_CONTENT" ]; then
@@ -61,20 +58,18 @@ jobs:
 
           echo "Question content: $QUESTION_CONTENT"
 
-          # Insert daily question
           echo "Inserting daily question..."
           DAILY_QUESTION_RESPONSE=$(curl -s -X POST \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=representation" \
-            -d "{ \"question_id\": \"$RANDOM_QUESTION_ID\", \"couple_id\": null, \"scheduled_for\": \"$(date +%Y-%m-%d)\" }" \
+            -d "{ \"question_id\": \"$RANDOM_QUESTION_ID\", \"couple_id\": null }" \
             "$SUPABASE_URL/rest/v1/daily_questions")
 
           echo "Inserted daily question response:"
           echo "$DAILY_QUESTION_RESPONSE"
 
-          # Extract daily question ID from response
           DAILY_QUESTION_ID=$(echo "$DAILY_QUESTION_RESPONSE" | jq -r 'if type=="array" and length>0 then .[0].id else empty end')
 
           if [ -z "$DAILY_QUESTION_ID" ]; then
@@ -84,23 +79,22 @@ jobs:
 
           echo "Daily question ID: $DAILY_QUESTION_ID"
 
-          # Create global notification for all users
           echo "Creating global notification..."
           NOTIFICATION_RESPONSE=$(curl -s -X POST \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -H "Prefer: return=representation" \
-            -d "{ 
-              \"couple_id\": null, 
-              \"daily_question_id\": \"$DAILY_QUESTION_ID\", 
-              \"question_id\": \"$RANDOM_QUESTION_ID\", 
-              \"question_content\": \"$QUESTION_CONTENT\", 
-              \"scheduled_for\": \"$(date +%Y-%m-%d)\",
+            -d "{
+              \"user_id\": null,
+              \"title\": \"Question du jour\",
+              \"message\": \"$QUESTION_CONTENT\",
+              \"type\": \"daily_question\",
+              \"data\": { \"daily_question_id\": \"$DAILY_QUESTION_ID\", \"question_id\": \"$RANDOM_QUESTION_ID\" },
               \"is_read\": false,
               \"is_deleted\": false
             }" \
-            "$SUPABASE_URL/rest/v1/daily_question_notifications")
+            "$SUPABASE_URL/rest/v1/notifications")
 
           echo "Created notification response:"
           echo "$NOTIFICATION_RESPONSE"
